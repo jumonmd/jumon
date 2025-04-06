@@ -1,0 +1,8 @@
+go.work
+go.work.sum
+.env
+*.test
+.tmp/
+dist/
+_examples/
+jumon
