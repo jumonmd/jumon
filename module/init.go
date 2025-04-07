@@ -21,7 +21,7 @@ func InitModule(name string) error {
 	}
 	defer f.Close()
 
-	_, err = f.WriteString(fmt.Sprintf(initTemplate, name))
+	_, err = fmt.Fprintf(f, initTemplate, name)
 	if err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
