@@ -1,3 +1,107 @@
 # JUMON.md
 
 A magically simple AI workflow orchestration engine.
+
+Status: In development, specifications are subject to change.
+
+## Overview
+
+JUMON is a powerful yet simple AI workflow orchestration engine that allows you to define, manage, and execute AI workflows using Markdown files. It provides a declarative way to create AI-powered applications by combining scripts, tools, and AI models in a modular fashion.
+
+## Features
+
+- **Markdown-Based Workflows**: Define your AI workflows in simple JUMON.md files
+- **Modular Architecture**: Organize your code into reusable modules
+- **Multi-Model Support**: Integrate with various LLM providers (OpenAI, Anthropic, Google, Ollama)
+- **Tool Integration**: Extend functionality with custom tools (WASM, NATS, scripts)
+- **Script Orchestration**: Create sequences of AI-powered steps
+- **Event System**: React to events with custom handlers
+
+## Installation
+
+```bash
+# Install JUMON
+go install github.com/jumonmd/jumon@latest
+
+# Verify installation
+jumon version
+```
+
+## Quick Start
+
+1. Initialize a new JUMON module:
+
+```bash
+jumon init hello-world
+```
+
+2. Edit the generated JUMON.md file:
+
+```markdown
+---
+module: hello-world
+---
+
+## Scripts
+
+### main
+
+1. Say Hello.
+2. Explain what JUMON is.
+```
+
+3. Run your module:
+
+```bash
+jumon run .
+```
+
+## Usage
+
+```
+jumon run <url_or_path> <input>
+```
+
+or serve jumon separately
+
+```
+jumon serve
+```
+
+### Commands
+
+- `jumon serve`: Start the JUMON server
+- `jumon stop`: Stop the JUMON server
+- `jumon init <name>`: Initialize a new JUMON module
+- `jumon run <url_or_path> [input]`: Run a JUMON module
+- `jumon version`: Show the version
+
+## Documentation
+
+For more detailed documentation, see the [JUMON.md/docs](https://JUMON.md/docs).
+
+## Tasks
+
+### test
+
+```
+go test -v ./...
+```
+
+### lint
+
+```
+golangci-lint run
+```
+
+### dist
+
+Requires: test, lint
+
+```
+goreleaser release --snapshot --clean
+```
+
+## License
+
+MPL-2.0
