@@ -1,0 +1,151 @@
+version: "2"
+linters:
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - containedctx
+    - contextcheck
+    - copyloopvar
+    - cyclop
+    - decorder
+    - dogsled
+    - dupl
+    - durationcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - exptostd
+    - fatcontext
+    - forcetypeassert
+    - funlen
+    - ginkgolinter
+    - gocheckcompilerdirectives
+    - gochecknoinits
+    - gochecksumtype
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - godox
+    - goheader
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - grouper
+    - iface
+    - importas
+    - inamedparam
+    - interfacebloat
+    - loggercheck
+    - maintidx
+    - makezero
+    - mirror
+    - misspell
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - noctx
+    - nosprintfhostport
+    - prealloc
+    - predeclared
+    - promlinter
+    - protogetter
+    - reassign
+    - recvcheck
+    - revive
+    - rowserrcheck
+    - sloglint
+    - spancheck
+    - sqlclosecheck
+    - staticcheck
+    - testableexamples
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - whitespace
+    - zerologlint
+  disable:
+    - canonicalheader
+    - depguard
+    - dupword
+    - err113
+    - exhaustruct
+    - forbidigo
+    - gochecknoglobals
+    - gosmopolitan
+    - intrange
+    - ireturn
+    - lll
+    - mnd
+    - musttag
+    - nlreturn
+    - nolintlint
+    - nonamedreturns
+    - paralleltest
+    - perfsprint
+    - tagalign
+    - tagliatelle
+    - testifylint
+    - testpackage
+    - varnamelen
+    - wrapcheck
+    - wsl
+  settings:
+    cyclop:
+      max-complexity: 12
+    errcheck:
+      exclude-functions:
+        - (github.com/nats-io/nats.go/micro.Service).Stop
+        - (github.com/nats-io/nats.go/micro.Group).AddEndpoint
+        - (github.com/nats-io/nats.go/micro.Request).Respond
+        - (github.com/nats-io/nats.go/micro.Request).RespondJSON
+        - (github.com/nats-io/nats.go/micro.Request).Error
+        - (*github.com/nats-io/nats.go.Subscription).Unsubscribe
+    funlen:
+      lines: 90
+    goheader:
+      values:
+        regexp:
+          fromyear: \d\d\d\d
+      template: |-
+        SPDX-FileCopyrightText: {{ FROMYEAR }} Masa Cento
+        SPDX-License-Identifier: MPL-2.0
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - examples$
+    rules:
+      - path: _test\.go
+        linters:
+          - gocyclo
+          - errcheck
+          - dupl
+          - gosec
+          - funlen
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
