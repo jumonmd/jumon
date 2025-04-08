@@ -6,32 +6,69 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
+	"io"
 
+	"github.com/jumonmd/gengo/chat"
 	"github.com/jumonmd/jumon/internal/tracer"
 	"github.com/nats-io/nats.go"
 )
 
 // PrintNotifications subscribes to the notification subject and prints the notifications.
-func PrintNotifications(nc *nats.Conn, subject string) (*nats.Subscription, error) {
+func PrintNotifications(nc *nats.Conn, subject string, w io.Writer) (*nats.Subscription, error) {
 	return nc.Subscribe(subject, func(msg *nats.Msg) {
 		n := &tracer.Notification{}
 		err := json.Unmarshal(msg.Data, n)
 		if err != nil {
 			return
 		}
-		fmt.Printf("%s %s\n", n.On, n.Name)
-		fristline := strings.Split(n.Content, "\n")[0]
-		fmt.Println("  ", fristline)
 
-		// if n.Name == "script.run" && n.On == "request" {
-
-		// if n.Name == "script.run" {
-		// 	var raw interface{}
-		// 	_ = json.Unmarshal([]byte(n.Content), &raw)
-		// 	// if content, ok := raw.(string); ok {
-		// 	// 	fmt.Print(content)
-		// 	// }
-		// }
+		if n.Name == "script.step.run" {
+			switch n.On {
+			case "request":
+				printStepRequest(w, n.Content)
+			case "response":
+				printStepResponse(w, n.Content)
+			case "error":
+				printError(w, n.Content)
+			}
+		}
+		if n.Name == "script.run" {
+			switch n.On {
+			case "response":
+				printScriptResponse(w, n.Content)
+			case "error":
+				printError(w, n.Content)
+			}
+		}
 	})
+}
+
+func printScriptResponse(w io.Writer, s string) {
+	fmt.Fprintln(w, "\nFinal Output:", s)
+}
+
+func printStepRequest(w io.Writer, s string) {
+	req := &chat.Request{}
+	err := json.Unmarshal([]byte(s), req)
+	if err != nil {
+		return
+	}
+
+	for _, m := range req.Messages {
+		fmt.Fprintf(w, "  %s\n", m.String())
+	}
+}
+
+func printStepResponse(w io.Writer, s string) {
+	res := &chat.Response{}
+	err := json.Unmarshal([]byte(s), res)
+	if err != nil {
+		return
+	}
+
+	fmt.Fprintf(w, "  %s\n", res.String())
+}
+
+func printError(w io.Writer, s string) {
+	fmt.Fprintln(w, "Error: ", s)
 }

@@ -32,6 +32,10 @@ func Run(ctx context.Context, nc *nats.Conn, scr *Script) (json.RawMessage, erro
 		return nil, fmt.Errorf("parse steps: %w", err)
 	}
 
+	history := &chat.Request{
+		Messages: []chat.Message{},
+	}
+
 	// construct initial prompt
 	initialPrompt := preface
 	if scr.InputURL != "" {
@@ -44,12 +48,10 @@ func Run(ctx context.Context, nc *nats.Conn, scr *Script) (json.RawMessage, erro
 		if strings.HasPrefix(mimetype, "text/") || strings.HasPrefix(mimetype, "application/") {
 			initialPrompt = fmt.Sprintf("%s\n\nINPUT:\n%s", initialPrompt, string(input))
 		}
-	}
 
-	history := &chat.Request{
-		Messages: []chat.Message{
-			chat.NewTextMessage(chat.MessageRoleHuman, initialPrompt),
-		},
+		if initialPrompt != "" {
+			history.Messages = append(history.Messages, chat.NewTextMessage(chat.MessageRoleHuman, initialPrompt))
+		}
 	}
 
 	// if no steps, create a single step with the initial prompt

@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
 )
 
@@ -277,6 +278,148 @@ func TestRemoveChecks(t *testing.T) {
 			if result != tc.expected {
 				t.Errorf("Result mismatch:\nwant: %v\ngot:  %v\ndiff: %s",
 					tc.expected, result, cmp.Diff(tc.expected, result))
+			}
+		})
+	}
+}
+
+func TestParseListItem(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected struct {
+			marker  string
+			content string
+			level   int
+		}
+	}{
+		{
+			name:  "unordered list with hyphen",
+			input: "- Simple list item",
+			expected: struct {
+				marker  string
+				content string
+				level   int
+			}{
+				marker:  "-",
+				content: "Simple list item",
+				level:   1,
+			},
+		},
+		{
+			name:  "unordered list with asterisk",
+			input: "* List item with *emphasis*",
+			expected: struct {
+				marker  string
+				content string
+				level   int
+			}{
+				marker:  "*",
+				content: "List item with *emphasis*",
+				level:   1,
+			},
+		},
+		{
+			name:  "unordered list with plus",
+			input: "+ List item with `code`",
+			expected: struct {
+				marker  string
+				content string
+				level   int
+			}{
+				marker:  "+",
+				content: "List item with `code`",
+				level:   1,
+			},
+		},
+		{
+			name:  "nested list item",
+			input: "  - Nested item",
+			expected: struct {
+				marker  string
+				content string
+				level   int
+			}{
+				marker:  "-",
+				content: "Nested item",
+				level:   2,
+			},
+		},
+		{
+			name:  "ordered list",
+			input: "1. First item",
+			expected: struct {
+				marker  string
+				content string
+				level   int
+			}{
+				marker:  "1.",
+				content: "First item",
+				level:   1,
+			},
+		},
+		{
+			name:  "nested ordered list",
+			input: "  2. Second item",
+			expected: struct {
+				marker  string
+				content string
+				level   int
+			}{
+				marker:  "2.",
+				content: "Second item",
+				level:   2,
+			},
+		},
+		{
+			name:  "ordered list with formatting",
+			input: "3. Item with **bold** and `code`",
+			expected: struct {
+				marker  string
+				content string
+				level   int
+			}{
+				marker:  "3.",
+				content: "Item with **bold** and `code`",
+				level:   1,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parser := goldmark.New().Parser()
+			doc := parser.Parse(text.NewReader([]byte(tt.input)))
+			var listItem *ast.ListItem
+			_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+				if entering {
+					if li, ok := n.(*ast.ListItem); ok {
+						listItem = li
+						return ast.WalkStop, nil
+					}
+				}
+				return ast.WalkContinue, nil
+			})
+
+			if listItem == nil {
+				t.Fatal("Failed to find list item in parsed document")
+			}
+
+			root := &Step{Level: 0}
+			currentItem := root
+			result, err := parseListItem(listItem, text.NewReader([]byte(tt.input)), tt.expected.level, root, currentItem)
+			if err != nil {
+				t.Fatalf("parseListItem() error = %v", err)
+			}
+
+			if result.Level != tt.expected.level {
+				t.Errorf("Level = %v, want %v", result.Level, tt.expected.level)
+			}
+			if result.Marker != tt.expected.marker {
+				t.Errorf("Marker = %v, want %v", result.Marker, tt.expected.marker)
+			}
+			if result.Content != tt.expected.content {
+				t.Errorf("Content = %v, want %v", result.Content, tt.expected.content)
 			}
 		})
 	}

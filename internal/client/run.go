@@ -119,7 +119,7 @@ func subscribeNotification(ctx context.Context, nc *nats.Conn) error {
 
 	slog.Info("notify to", "notifyTo", notifyTo)
 
-	sub, err := PrintNotifications(nc, "notification."+notifyTo)
+	sub, err := PrintNotifications(nc, "notification."+notifyTo, os.Stdout)
 	if err != nil {
 		return err
 	}

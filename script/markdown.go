@@ -6,6 +6,7 @@ package script
 import (
 	"bytes"
 	"regexp"
+	"strconv"
 	"strings"
 
 	markdown "github.com/teekennedy/goldmark-markdown"
@@ -119,21 +120,32 @@ func getListItemText(parent ast.Node, r text.Reader) (string, error) {
 	return result, nil
 }
 
-// getListItemMarker returns the marker (-, *, +) of the list item.
-func getListItemMarker(parent ast.Node) string {
+// getListItemMarker returns the marker (-, *, +) or number (1., 2., etc.) of the list item.
+func getListItemMarker(parent ast.Node, r text.Reader) string {
 	var sb strings.Builder
-	_ = ast.Walk(parent, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if entering {
-			if n.Parent().Kind() == ast.KindList {
-				if list, ok := n.Parent().(*ast.List); ok {
-					sb.WriteString(string(list.Marker))
-					return ast.WalkStop, nil
-				}
-			}
+	if list, ok := parent.Parent().(*ast.List); ok {
+		if list.IsOrdered() {
+			// For ordered lists, use the list's start number
+			sb.WriteString(strconv.Itoa(list.Start))
+			sb.WriteString(string(list.Marker))
+		} else {
+			sb.WriteString(string(list.Marker))
 		}
-		return ast.WalkContinue, nil
-	})
+	}
 	return sb.String()
+}
+
+// extractNumber extracts the number from the start of a list item text.
+func extractNumber(text string) string {
+	text = strings.TrimLeft(text, " \t")
+	i := 0
+	for i < len(text) && (text[i] >= '0' && text[i] <= '9') {
+		i++
+	}
+	if i > 0 && i < len(text) && text[i] == '.' {
+		return text[:i]
+	}
+	return ""
 }
 
 // parseListItem parses the given list item and returns the updated current item.
@@ -143,9 +155,11 @@ func parseListItem(node ast.Node, r text.Reader, currentLevel int, root, current
 		return nil, err
 	}
 
+	marker := getListItemMarker(node, r)
 	item := &Step{
 		Level:    currentLevel,
-		Content:  getListItemMarker(node) + " " + text,
+		Marker:   marker,
+		Content:  text,
 		Children: []*Step{},
 	}
 

@@ -49,6 +49,8 @@ type Config struct {
 type Step struct {
 	// Level normally starts from 1. (root is 0)
 	Level int
+	// Marker is the markdown list marker. e.g. "-", "*", "1.", etc.
+	Marker string
 	// Type for the extension of the step.
 	Type     string
 	Content  string
@@ -83,6 +85,8 @@ func (s *Step) Markdown() string {
 		for range s.Level - 1 {
 			builder.WriteString("  ")
 		}
+		builder.WriteString(s.Marker)
+		builder.WriteString(" ")
 		builder.WriteString(s.Content)
 		builder.WriteString("\n")
 	}

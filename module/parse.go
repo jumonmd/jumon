@@ -199,7 +199,7 @@ func getMap(md []byte) map[string]string {
 }
 
 // getNodeHeadingContent extracts content between the current heading and the next heading.
-// eg.
+// e.g.
 // > ## Heading
 // > Inner Content
 // > ## Next Heading

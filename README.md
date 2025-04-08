@@ -46,8 +46,8 @@ module: hello-world
 
 ### main
 
-1. Say Hello.
-2. Explain what JUMON is.
+1. How is JUMON written in kanji?
+2. Explain the meaning along with its kanji
 ```
 
 3. Run your module:
@@ -62,7 +62,7 @@ jumon run .
 jumon run <url_or_path> <input>
 ```
 
-or serve jumon separately
+or start jumon server separately
 
 ```
 jumon serve
@@ -79,6 +79,15 @@ jumon serve
 ## Documentation
 
 For more detailed documentation, see the [JUMON.md/docs](https://JUMON.md/docs).
+
+## Telemetry
+
+Anonymous telemetry is enabled by default for quality improvement purposes, collecting usage counts and error codes along with version and OS environment information. You can disable it using the following method:
+
+```
+jumon --disable-telemetry
+```
+
 
 ## Tasks
 
@@ -104,4 +113,4 @@ goreleaser release --snapshot --clean
 
 ## License
 
-MPL-2.0
+[MPL-2.0](LICENSE)

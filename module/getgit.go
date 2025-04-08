@@ -117,7 +117,7 @@ func gitCommand(dir string, args ...string) error {
 }
 
 // expand replaces placeholders in the format {key} with values from the map.
-// eg. match = {"key": "value"} -> s = "https://{key}" -> result = "https://value"
+// e.g. match = {"key": "value"} -> s = "https://{key}" -> result = "https://value"
 func expand(match map[string]string, s string) string {
 	result := s
 	for k, v := range match {
