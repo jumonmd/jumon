@@ -37,21 +37,14 @@ func Run(ctx context.Context, nc *nats.Conn, scr *Script) (json.RawMessage, erro
 	}
 
 	// construct initial prompt
-	initialPrompt := preface
-	if scr.InputURL != "" {
-		input, mimetype, err := dataurl.Decode(scr.InputURL)
-		if err != nil {
-			span.SetError(fmt.Errorf("decode input: %w", err))
-			return nil, fmt.Errorf("decode input: %w", err)
-		}
-		// currently accepts text/* or application/* for input
-		if strings.HasPrefix(mimetype, "text/") || strings.HasPrefix(mimetype, "application/") {
-			initialPrompt = fmt.Sprintf("%s\n\nINPUT:\n%s", initialPrompt, string(input))
-		}
+	initialPrompt, err := initialPrompt(preface, scr.InputURL)
+	if err != nil {
+		span.SetError(fmt.Errorf("construct initial prompt: %w", err))
+		return nil, fmt.Errorf("construct initial prompt: %w", err)
+	}
 
-		if initialPrompt != "" {
-			history.Messages = append(history.Messages, chat.NewTextMessage(chat.MessageRoleHuman, initialPrompt))
-		}
+	if initialPrompt != "" {
+		history.Messages = append(history.Messages, chat.NewTextMessage(chat.MessageRoleHuman, initialPrompt))
 	}
 
 	// if no steps, create a single step with the initial prompt
@@ -69,7 +62,6 @@ func Run(ctx context.Context, nc *nats.Conn, scr *Script) (json.RawMessage, erro
 		req := stepRequest(scr, step, history)
 		sspan.SetRequest(req)
 
-		// append last step's request message to history
 		history.Messages = append(history.Messages, req.Messages[len(req.Messages)-1])
 
 		// run step
@@ -80,9 +72,7 @@ func Run(ctx context.Context, nc *nats.Conn, scr *Script) (json.RawMessage, erro
 			return nil, fmt.Errorf("run step: %w", err)
 		}
 
-		// append response message to history
 		history.Messages = append(history.Messages, resp.Messages...)
-
 		sspan.SetResponse(resp)
 	}
 
@@ -94,6 +84,21 @@ func Run(ctx context.Context, nc *nats.Conn, scr *Script) (json.RawMessage, erro
 	span.SetResponse(output)
 
 	return output, nil
+}
+
+// initialPrompt constructs the initial prompt from preface and input URL.
+func initialPrompt(preface, inputURL string) (string, error) {
+	initialPrompt := preface
+	if inputURL != "" {
+		input, mimetype, err := dataurl.Decode(inputURL)
+		if err != nil {
+			return "", fmt.Errorf("decode input: %w", err)
+		}
+		if strings.HasPrefix(mimetype, "text/") || strings.HasPrefix(mimetype, "application/") {
+			initialPrompt = fmt.Sprintf("%s\n\nINPUT:\n%s", initialPrompt, string(input))
+		}
+	}
+	return initialPrompt, nil
 }
 
 // stepRequest prepares the chat request message for a script step.

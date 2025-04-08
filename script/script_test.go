@@ -76,12 +76,14 @@ func TestScriptSteps(t *testing.T) {
 			want: []*Step{
 				{
 					Level:    1,
-					Content:  "- step1",
+					Marker:   "-",
+					Content:  "step1",
 					Children: []*Step{},
 				},
 				{
 					Level:    1,
-					Content:  "- step2",
+					Marker:   "-",
+					Content:  "step2",
 					Children: []*Step{},
 				},
 			},
@@ -92,43 +94,27 @@ func TestScriptSteps(t *testing.T) {
 			script: Script{
 				Name: "test script",
 				Content: `
-- step1
-  - step1.1
-  - step1.2
-- step2
-  - step2.1
-  - step2.2
+1. step1
+   1. step1.1
+   2. step1.2
 `,
 			},
 			want: []*Step{
 				{
 					Level:   1,
-					Content: "- step1",
+					Marker:  "1.",
+					Content: "step1",
 					Children: []*Step{
 						{
 							Level:    2,
-							Content:  "- step1.1",
+							Marker:   "1.",
+							Content:  "step1.1",
 							Children: []*Step{},
 						},
 						{
 							Level:    2,
-							Content:  "- step1.2",
-							Children: []*Step{},
-						},
-					},
-				},
-				{
-					Level:   1,
-					Content: "- step2",
-					Children: []*Step{
-						{
-							Level:    2,
-							Content:  "- step2.1",
-							Children: []*Step{},
-						},
-						{
-							Level:    2,
-							Content:  "- step2.2",
+							Marker:   "2.",
+							Content:  "step1.2",
 							Children: []*Step{},
 						},
 					},

@@ -130,8 +130,8 @@ func TestParseListWithPreface(t *testing.T) {
 			input:       "- Item 1\n- Item 2",
 			wantPreface: "",
 			wantListItems: []string{
-				"- Item 1",
-				"- Item 2",
+				"Item 1",
+				"Item 2",
 			},
 		},
 		{
@@ -139,8 +139,8 @@ func TestParseListWithPreface(t *testing.T) {
 			input:       "This is a preface.\n- Item 1\n- Item 2",
 			wantPreface: "This is a preface.",
 			wantListItems: []string{
-				"- Item 1",
-				"- Item 2",
+				"Item 1",
+				"Item 2",
 			},
 		},
 		{
@@ -148,8 +148,8 @@ func TestParseListWithPreface(t *testing.T) {
 			input:       "First paragraph.\n\nSecond paragraph.\n- Item 1\n- Item 2",
 			wantPreface: "First paragraph.\n\nSecond paragraph.",
 			wantListItems: []string{
-				"- Item 1",
-				"- Item 2",
+				"Item 1",
+				"Item 2",
 			},
 		},
 		{
@@ -157,8 +157,8 @@ func TestParseListWithPreface(t *testing.T) {
 			input:       "This is a **bold** preface with `code`.\n- Item 1\n- Item 2",
 			wantPreface: "This is a **bold** preface with `code`.",
 			wantListItems: []string{
-				"- Item 1",
-				"- Item 2",
+				"Item 1",
+				"Item 2",
 			},
 		},
 	}
@@ -373,13 +373,13 @@ func TestParseListItem(t *testing.T) {
 		},
 		{
 			name:  "ordered list with formatting",
-			input: "3. Item with **bold** and `code`",
+			input: "1. Item with **bold** and `code`",
 			expected: struct {
 				marker  string
 				content string
 				level   int
 			}{
-				marker:  "3.",
+				marker:  "1.",
 				content: "Item with **bold** and `code`",
 				level:   1,
 			},

@@ -121,31 +121,28 @@ func getListItemText(parent ast.Node, r text.Reader) (string, error) {
 }
 
 // getListItemMarker returns the marker (-, *, +) or number (1., 2., etc.) of the list item.
-func getListItemMarker(parent ast.Node, r text.Reader) string {
+func getListItemMarker(note ast.Node) string {
 	var sb strings.Builder
-	if list, ok := parent.Parent().(*ast.List); ok {
+	if list, ok := note.Parent().(*ast.List); ok {
 		if list.IsOrdered() {
-			// For ordered lists, use the list's start number
-			sb.WriteString(strconv.Itoa(list.Start))
+			// for ordered lists, we need to calculate the actual number
+			number := list.Start
+			// count previous siblings to get the correct number
+			if item, ok := note.(*ast.ListItem); ok {
+				prev := item.PreviousSibling()
+				for prev != nil {
+					number++
+					prev = prev.PreviousSibling()
+				}
+			}
+			sb.WriteString(strconv.Itoa(number))
 			sb.WriteString(string(list.Marker))
 		} else {
+			// for unordered lists, just use the marker
 			sb.WriteString(string(list.Marker))
 		}
 	}
 	return sb.String()
-}
-
-// extractNumber extracts the number from the start of a list item text.
-func extractNumber(text string) string {
-	text = strings.TrimLeft(text, " \t")
-	i := 0
-	for i < len(text) && (text[i] >= '0' && text[i] <= '9') {
-		i++
-	}
-	if i > 0 && i < len(text) && text[i] == '.' {
-		return text[:i]
-	}
-	return ""
 }
 
 // parseListItem parses the given list item and returns the updated current item.
@@ -155,7 +152,7 @@ func parseListItem(node ast.Node, r text.Reader, currentLevel int, root, current
 		return nil, err
 	}
 
-	marker := getListItemMarker(node, r)
+	marker := getListItemMarker(node)
 	item := &Step{
 		Level:    currentLevel,
 		Marker:   marker,
