@@ -14,7 +14,6 @@ import (
 	"github.com/jumonmd/jumon/internal/logger"
 	"github.com/jumonmd/jumon/internal/server"
 	"github.com/jumonmd/jumon/internal/tracer"
-	"github.com/jumonmd/jumon/local"
 	"github.com/jumonmd/jumon/module"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -85,15 +84,6 @@ func setupServices(cfg *Config, isDebug bool) (nc *nats.Conn, js jetstream.JetSt
 	// Setup logger
 	l := logger.New(nc, isDebug, true)
 	slog.SetDefault(slog.New(l))
-
-	// Setup local service
-	localSvc, err = local.NewService(nc, &local.Config{
-		WorkingDir: ".",
-		ReadOnly:   true,
-	})
-	if err != nil {
-		return nil, nil, nil, cleanup, fmt.Errorf("local service setup: %w", err)
-	}
 
 	// Log that local service is setup
 	slog.Debug("local service setup complete")

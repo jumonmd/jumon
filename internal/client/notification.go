@@ -54,8 +54,13 @@ func printStepRequest(w io.Writer, s string) {
 		return
 	}
 
-	for _, m := range req.Messages {
-		fmt.Fprintf(w, "  %s\n", m.String())
+	if len(req.Messages) == 0 {
+		return
+	}
+
+	last := req.Messages[len(req.Messages)-1]
+	if last.Role == chat.MessageRoleHuman {
+		fmt.Fprintf(w, "  %s\n", last.String())
 	}
 }
 

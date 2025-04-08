@@ -6,28 +6,17 @@ module: jumonmd/jumon/example/tool
 
 ### main
 
-1. Get weather from Tokyo.
-2. Explain in Japanese.
-
+1. Get current time.
+2. Express current time using emojis.
 
 ## Tools
 
-### get_weather
+### get_time
 ```json
 {
-    "name": "get_weather",
+    "name": "get_time",
     "type": "nats",
-    "description": "get weather at the city.",
-    "version": "0.1.0",
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "city": {
-                "type": "string"
-            }
-        },
-        "required": ["city"]
-    },
-    "arguments": {"subject": "tool.example.get_weather"}
+    "description": "get current time.",
+    "arguments": {"subject": "tool.std.time.now"}
 }
 ```

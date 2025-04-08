@@ -69,6 +69,9 @@ func Run(ctx context.Context, nc *nats.Conn, scr *Script) (json.RawMessage, erro
 		req := stepRequest(scr, step, history)
 		sspan.SetRequest(req)
 
+		// append last step's request message to history
+		history.Messages = append(history.Messages, req.Messages[len(req.Messages)-1])
+
 		// run step
 		slog.Debug("run step", "step", step.Markdown())
 		resp, err := runStep(ctx, nc, req, scr.Tools)
@@ -77,8 +80,7 @@ func Run(ctx context.Context, nc *nats.Conn, scr *Script) (json.RawMessage, erro
 			return nil, fmt.Errorf("run step: %w", err)
 		}
 
-		// append request and response messages to history
-		history.Messages = append(history.Messages, req.Messages...)
+		// append response message to history
 		history.Messages = append(history.Messages, resp.Messages...)
 
 		sspan.SetResponse(resp)
