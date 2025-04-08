@@ -10,6 +10,7 @@ import (
 
 	"github.com/jumonmd/jumon/internal/errors"
 	"github.com/jumonmd/jumon/internal/tracer"
+	"github.com/jumonmd/jumon/tool/std"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/nats-io/nats.go/micro"
@@ -47,6 +48,8 @@ func NewService(nc *nats.Conn, obs jetstream.ObjectStore) (micro.Service, error)
 	toolGroup.AddEndpoint("run", micro.HandlerFunc(func(r micro.Request) {
 		go runHandler(nc, obs, r)
 	}))
+
+	std.New(toolGroup)
 
 	slog.Info("tool service", "status", "started")
 	return svc, nil
