@@ -424,3 +424,78 @@ func TestParseListItem(t *testing.T) {
 		})
 	}
 }
+
+func TestGetListItemText(t *testing.T) {
+	tests := []struct {
+		name     string
+		markdown string
+		want     string
+	}{
+		{
+			name:     "simple text",
+			markdown: "- Simple item",
+			want:     "Simple item",
+		},
+		{
+			name:     "with formatting",
+			markdown: "- Item with **bold** and *italic*",
+			want:     "Item with **bold** and *italic*",
+		},
+		{
+			name:     "with code span",
+			markdown: "- Item with `code span`",
+			want:     "Item with `code span`",
+		},
+		{
+			name:     "with nested list that should be ignored",
+			markdown: "- Parent item\n  - Nested item",
+			want:     "Parent item",
+		},
+		{
+			name:     "ul with blockquote",
+			markdown: "- Item with quote\n  > This is a blockquote",
+			want:     "Item with quote\n> This is a blockquote",
+		},
+		{
+			name:     "ol with blockquote",
+			markdown: "1. Item with quote\n  > This is a blockquote",
+			want:     "Item with quote\n> This is a blockquote",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parser := goldmark.New().Parser()
+			reader := text.NewReader([]byte(tt.markdown))
+			doc := parser.Parse(reader)
+
+			// Find first list item
+			var listItem *ast.ListItem
+			ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+				if entering && n.Kind() == ast.KindListItem {
+					listItem = n.(*ast.ListItem)
+					return ast.WalkStop, nil
+				}
+				return ast.WalkContinue, nil
+			})
+
+			if listItem == nil {
+				t.Fatal("Failed to find list item in test markdown")
+			}
+
+			got, err := getListItemText(listItem, reader)
+			if err != nil {
+				t.Fatalf("getListItemText() error = %v", err)
+			}
+
+			// Normalize whitespace for comparison
+			normalizeWhitespace := func(s string) string {
+				return strings.Join(strings.Fields(strings.ReplaceAll(s, "\n", " ")), " ")
+			}
+
+			if normalizeWhitespace(got) != normalizeWhitespace(tt.want) {
+				t.Errorf("getListItemText() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

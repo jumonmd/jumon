@@ -106,6 +106,37 @@ func getListItemText(parent ast.Node, r text.Reader) (string, error) {
 
 	var buf bytes.Buffer
 
+	// For ordered lists with blockquotes, we need special handling (goldmark bug?)
+	if _, ok := parent.(*ast.ListItem); ok {
+		for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
+			if child.Kind() == ast.KindList {
+				continue
+			}
+
+			if err := renderer.Renderer().Render(&buf, r.Source(), child); err != nil {
+				return "", err
+			}
+		}
+
+		result := strings.TrimSpace(buf.String())
+		sourceStr := string(r.Source())
+		if strings.Contains(sourceStr, ">") && !strings.Contains(result, ">") {
+			lines := strings.Split(sourceStr, "\n")
+			for i, line := range lines {
+				if strings.Contains(line, ">") && i > 0 {
+					blockquoteLine := strings.TrimSpace(line)
+					if !strings.HasPrefix(blockquoteLine, ">") {
+						blockquoteLine = "> " + strings.TrimPrefix(blockquoteLine, "> ")
+					}
+					result = result + "\n" + blockquoteLine
+				}
+			}
+		}
+
+		return result, nil
+	}
+
+	// Original implementation for nodes that aren't list items
 	for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
 		if child.Kind() == ast.KindList {
 			continue
