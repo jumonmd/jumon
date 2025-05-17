@@ -22,7 +22,7 @@ func Decode(dataURL string) (data []byte, mimeType string, err error) {
 	if err != nil {
 		return nil, "", fmt.Errorf("base64 decode failed: %w", err)
 	}
-	mimeType = parts[0]
+	mimeType = strings.TrimPrefix(parts[0], "data:")
 	return
 }
 
