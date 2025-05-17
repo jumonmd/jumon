@@ -59,13 +59,13 @@ func main() {
 	case "run <url_or_path>":
 		cfg, err := client.LoadConfig(client.DefaultConfigPath())
 		if err != nil {
-			log.Println(err)
+			fmt.Println("load config error:", err)
 		}
 		if err := client.WaitServer(os.Args[0], cfg.ServerURL); err != nil {
-			log.Println(err)
+			fmt.Println("wait server error:", err)
 		}
 		if err := client.Run(CLI.Run.Name, []byte(CLI.Run.Input)); err != nil {
-			log.Println(err)
+			fmt.Println("run error:", err)
 		}
 	case "version":
 		fmt.Println(version.Version)

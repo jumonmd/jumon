@@ -6,6 +6,7 @@ package module
 import (
 	"fmt"
 
+	"github.com/jumonmd/gengo/jsonschema"
 	"github.com/jumonmd/jumon/script"
 	"github.com/jumonmd/jumon/tool"
 )
@@ -19,9 +20,10 @@ type Module struct {
 	// JumonVersion specifies the compatibility version.
 	JumonVersion string `json:"jumon"`
 	// Name is the module's unique identifier in package path format.
-	Name    string           `json:"module"`
-	Scripts []*script.Script `json:"scripts"`
-	Tools   []tool.Tool      `json:"tools,omitempty"`
+	Name    string                       `json:"module"`
+	Scripts []*script.Script             `json:"scripts"`
+	Tools   []tool.Tool                  `json:"tools,omitempty"`
+	Schemas map[string]jsonschema.Schema `json:"schemas,omitempty"`
 }
 
 func (m *Module) Validate() error {

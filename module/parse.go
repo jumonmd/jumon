@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/jumonmd/gengo/jsonschema"
 	"github.com/jumonmd/jumon/internal/frontmatter"
 	"github.com/jumonmd/jumon/script"
 	"github.com/jumonmd/jumon/tool"
@@ -20,6 +21,7 @@ import (
 const (
 	SectionScripts = "Scripts"
 	SectionTools   = "Tools"
+	SectionSchemas = "Schemas"
 	SectionEvents  = "Events"
 )
 
@@ -54,6 +56,8 @@ func detectSection(node ast.Node, r text.Reader) string {
 			return SectionScripts
 		case SectionTools:
 			return SectionTools
+		case SectionSchemas:
+			return SectionSchemas
 		case SectionEvents:
 			return SectionEvents
 		}
@@ -105,6 +109,27 @@ func handleLevel3Heading(mod *Module, node *ast.Heading, r text.Reader, currentS
 
 		tl.Name = name
 		mod.Tools = append(mod.Tools, tl)
+
+	case SectionSchemas:
+		if mod.Schemas == nil {
+			mod.Schemas = make(map[string]jsonschema.Schema)
+		}
+		content := getNodeHeadingContent(node, r)
+		lang, code, err := getCodeBlock([]byte(content))
+		if err != nil {
+			slog.Error("failed to get code block for schema", "schema_name", name, "error", err)
+			return err
+		}
+
+		slog.Debug("schema", "lang", lang, "code", code)
+
+		sch, err := jsonschema.ParseJSONString(code)
+		if err != nil {
+			slog.Error("failed to parse schema", "schema_name", name, "error", err)
+			return err
+		}
+
+		mod.Schemas[name] = sch
 	}
 	return nil
 }
@@ -138,6 +163,13 @@ func parseMarkdown(doc ast.Node, r text.Reader) (*Module, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	if mod.Schemas != nil {
+		for _, script := range mod.Scripts {
+			script.InputSchema = mod.Schemas[fmt.Sprintf("%s.input", script.Name)]
+			script.OutputSchema = mod.Schemas[fmt.Sprintf("%s.output", script.Name)]
+		}
 	}
 
 	return mod, nil

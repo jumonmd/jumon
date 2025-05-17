@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/jumonmd/gengo/jsonschema"
 	"github.com/jumonmd/jumon/script"
 	"github.com/jumonmd/jumon/tool"
 	"github.com/yuin/goldmark"
@@ -100,7 +101,7 @@ func TestParse(t *testing.T) {
 				Name: "",
 				Scripts: []*script.Script{
 					{Name: "ScriptA", Content: "- do something"},
-					{Name: "ScriptB", Content: "- do something else"},
+					{Name: "ScriptB", Content: "- do something else\nfirst line\nsecond line"},
 				},
 			},
 		},
@@ -121,6 +122,33 @@ func TestParse(t *testing.T) {
 				Name: "import",
 				Tools: []tool.Tool{
 					{Name: "get_weather", Module: "anothermodule"},
+				},
+			},
+		},
+		{
+			name:     "schemas",
+			testFile: "schema.md",
+			want: &Module{
+				Name: "schema",
+				Schemas: map[string]jsonschema.Schema{
+					"main.input": {
+						"type": "object",
+						"properties": map[string]any{
+							"query": map[string]any{
+								"type": "string",
+							},
+						},
+						"required": []any{"query"},
+					},
+					"main.output": {
+						"type": "object",
+						"properties": map[string]any{
+							"result": map[string]any{
+								"type": "string",
+							},
+						},
+						"required": []any{"result"},
+					},
 				},
 			},
 		},
