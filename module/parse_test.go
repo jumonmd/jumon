@@ -101,7 +101,7 @@ func TestParse(t *testing.T) {
 				Name: "",
 				Scripts: []*script.Script{
 					{Name: "ScriptA", Content: "- do something"},
-					{Name: "ScriptB", Content: "- do something else\nfirst line\nsecond line"},
+					{Name: "ScriptB", Content: "1. do something else\ncontent\n> cite"},
 				},
 			},
 		},

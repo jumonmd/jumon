@@ -18,6 +18,10 @@ func New(code int, description string) *ServiceError {
 	return &ServiceError{Code: code, Description: description}
 }
 
+func Is(err error, target error) bool {
+	return errors.Is(err, target)
+}
+
 func Unwrap(err error) error {
 	return errors.Unwrap(err)
 }

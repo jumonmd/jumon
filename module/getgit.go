@@ -18,7 +18,7 @@ import (
 
 // GetByGit fetches a module from a git repository and stores it to the keyvalue store.
 func GetByGit(ctx context.Context, kv jetstream.KeyValue, module string) (*Module, error) {
-	slog.Info("jumon get by git", "module", module)
+	slog.Debug("jumon get by git", "module", module)
 	repo, path, err := getVCSPath(module)
 	if err != nil {
 		return nil, fmt.Errorf("invalid module name: %w", err)

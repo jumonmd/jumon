@@ -89,7 +89,7 @@ func Serve(disableTelemetry bool) error {
 
 	slog.Debug("server", "isDebug", isDebug, "disableTelemetry", disableTelemetry)
 
-	slog.Info("server is ready")
+	slog.Info("server is ready on port " + strconv.Itoa(natscfg.Port))
 
 	// Wait for shutdown signal
 	quit := make(chan os.Signal, 1)

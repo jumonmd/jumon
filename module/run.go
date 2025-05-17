@@ -25,7 +25,7 @@ func Run(ctx context.Context, nc *nats.Conn, modurl string, input []byte) (json.
 		return nil, ErrModuleNotFound.Wrap(fmt.Errorf("%w: %s", err, modname))
 	}
 
-	slog.Debug("run module", "modname", modname, "script", scriptname)
+	slog.Debug("run module", "modname", modname, "script", scriptname, "input", string(input))
 	scr := mod.GetScript(scriptname)
 	if scr == nil {
 		return nil, ErrScriptNotFound.Wrap(fmt.Errorf("script not found: %s", scriptname))
