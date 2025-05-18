@@ -19,17 +19,27 @@ const (
 	EventTypeSubscribe Type = "subscribe"
 	EventTypePublish   Type = "publish"
 	EventTypeConsume   Type = "consume"
+	EventTypeForward   Type = "forward"
 )
 
 type Event struct {
-	Type    Type   `json:"type"`
-	Subject string `json:"subject"`
-	Module  string `json:"module"`
+	Type             Type   `json:"type"`
+	SubscribeSubject string `json:"subscribe_subject"`
+	PublishSubject   string `json:"publish_subject"`
+	Consumer         string `json:"consumer"`
+	Module           string `json:"module"`
+	Template         string `json:"template"`
 }
 
 // PutEvent puts an event into the key value store.
 func PutEvent(ctx context.Context, js jetstream.JetStream, evt *Event) error {
-	key := fmt.Sprintf("%s.%s", evt.Type, evt.Subject)
+	var key string
+	switch evt.Type {
+	case EventTypeSubscribe, EventTypeForward:
+		key = fmt.Sprintf("%s.%s", evt.Type, evt.SubscribeSubject)
+	case EventTypePublish:
+		key = fmt.Sprintf("%s.%s", evt.Type, evt.Module)
+	}
 
 	evtdata, err := json.Marshal(evt)
 	if err != nil {
@@ -50,9 +60,8 @@ func PutEvent(ctx context.Context, js jetstream.JetStream, evt *Event) error {
 	return nil
 }
 
-// GetEvent gets an event from the key value store.
-func GetEvent(ctx context.Context, js jetstream.JetStream, typ Type, subject string) (*Event, error) {
-	key := fmt.Sprintf("%s.%s", typ, subject)
+func GetConsumerEvent(ctx context.Context, js jetstream.JetStream, subject string) (*Event, error) {
+	key := fmt.Sprintf("%s.%s", EventTypeConsume, subject)
 
 	kv, err := js.KeyValue(ctx, "event")
 	if err != nil {
@@ -60,7 +69,80 @@ func GetEvent(ctx context.Context, js jetstream.JetStream, typ Type, subject str
 	}
 
 	evtdata, err := kv.Get(ctx, key)
+	if err != nil && errors.Is(err, jetstream.ErrKeyNotFound) {
+		return nil, ErrEventNotFound
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to get event: %w", err)
+	}
+
+	var evt Event
+	err = json.Unmarshal(evtdata.Value(), &evt)
 	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal event: %w", err)
+	}
+	return &evt, nil
+}
+
+// GetSubscribeEvent gets an event from the key value store.
+func GetSubscribeEvent(ctx context.Context, js jetstream.JetStream, subject string) (*Event, error) {
+	key := fmt.Sprintf("%s.%s", EventTypeSubscribe, subject)
+
+	kv, err := js.KeyValue(ctx, "event")
+	if err != nil {
+		return nil, fmt.Errorf("create key value store: %w", err)
+	}
+
+	evtdata, err := kv.Get(ctx, key)
+	if err != nil && errors.Is(err, jetstream.ErrKeyNotFound) {
+		return nil, ErrEventNotFound
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to get event: %w", err)
+	}
+
+	var evt Event
+	err = json.Unmarshal(evtdata.Value(), &evt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal event: %w", err)
+	}
+	return &evt, nil
+}
+
+// GetForwardEvent gets a forward event from the key value store.
+func GetForwardEvent(ctx context.Context, js jetstream.JetStream, subject string) (*Event, error) {
+	key := fmt.Sprintf("%s.%s", EventTypeForward, subject)
+
+	kv, err := js.KeyValue(ctx, "event")
+	if err != nil {
+		return nil, fmt.Errorf("create key value store: %w", err)
+	}
+
+	evtdata, err := kv.Get(ctx, key)
+	if err != nil && errors.Is(err, jetstream.ErrKeyNotFound) {
+		return nil, ErrEventNotFound
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to get event: %w", err)
+	}
+
+	var evt Event
+	err = json.Unmarshal(evtdata.Value(), &evt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal event: %w", err)
+	}
+	return &evt, nil
+}
+
+func GetPublishEvent(ctx context.Context, js jetstream.JetStream, module string) (*Event, error) {
+	key := fmt.Sprintf("%s.%s", EventTypePublish, module)
+
+	kv, err := js.KeyValue(ctx, "event")
+	if err != nil {
+		return nil, fmt.Errorf("create key value store: %w", err)
+	}
+
+	evtdata, err := kv.Get(ctx, key)
+	if err != nil && errors.Is(err, jetstream.ErrKeyNotFound) {
+		return nil, ErrEventNotFound
+	} else if err != nil {
 		return nil, fmt.Errorf("failed to get event: %w", err)
 	}
 

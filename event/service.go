@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"slices"
 	"strings"
 
 	"github.com/jumonmd/jumon/internal/errors"
@@ -18,7 +17,7 @@ import (
 	"github.com/nats-io/nats.go/micro"
 )
 
-const subscribeSubject = "event"
+const eventSubject = "event"
 
 var (
 	// ErrValidateEvent is returned when event validation fails.
@@ -110,15 +109,79 @@ func NewService(nc *nats.Conn, js jetstream.JetStream) (micro.Service, error) {
 		deleteEventHandler(ctx, js, r)
 	}))
 
-	sub, err := nc.Subscribe(subscribeSubject+".>", func(msg *nats.Msg) {
-		if slices.Contains(manageEndpoints, msg.Subject) {
-			return
+	sub, err := nc.Subscribe(eventSubject+".>", func(msg *nats.Msg) {
+		for _, evt := range manageEndpoints {
+			if strings.HasPrefix(msg.Subject, eventSubject+"."+evt) {
+				return
+			}
 		}
 
 		ctx := context.Background()
-		err := subscribeMessage(ctx, nc, js, msg)
+
+		fwdevt, err := GetForwardEvent(ctx, js, msg.Subject)
+		if err != nil && !errors.Is(err, ErrEventNotFound) { // ignore not found error
+			slog.Warn("event service", "status", "get forward event failed", "subject", msg.Subject, "error", err)
+			return
+		}
+
+		// just forward event
+		if fwdevt != nil {
+			slog.Info("event service", "status", "forward event", "subject", fwdevt.SubscribeSubject, "module", fwdevt.Module)
+			if fwdevt.PublishSubject == "" {
+				slog.Warn("event service", "status", "forward event to is empty", "subject", fwdevt.PublishSubject, "module", fwdevt.Module)
+				return
+			}
+
+			formatdata, err := FormatJSON(msg.Data, fwdevt.Template)
+			if err != nil {
+				slog.Error("event service", "status", "format json failed", "error", err)
+				return
+			}
+			slog.Debug("event service", "status", "forward event", "subject", fwdevt.PublishSubject, "content", string(formatdata))
+			err = nc.Publish(fwdevt.PublishSubject, formatdata)
+			if err != nil {
+				slog.Error("event service", "status", "publish failed", "error", err)
+			}
+			return
+		}
+
+		subevt, err := GetSubscribeEvent(ctx, js, msg.Subject)
 		if err != nil {
-			slog.Error("event service", "status", "subscribe failed", "error", err)
+			slog.Warn("event service", "status", "get subscribe event failed", "subject", msg.Subject, "error", err)
+			return
+		}
+
+		// subscribe event to run script
+		slog.Info("event service", "status", "subscribe event", "subject", subevt.SubscribeSubject, "module", subevt.Module)
+		resp, err := trigger(ctx, nc, subevt, msg.Data)
+		if err != nil {
+			slog.Error("event service", "status", "trigger failed", "error", err)
+		}
+
+		pubevt, err := GetPublishEvent(ctx, js, subevt.Module)
+		if err != nil {
+			slog.Warn("event service", "status", "get publish event failed", "subject", msg.Subject, "error", err)
+			return
+		}
+
+		// publish event after run script
+		if resp != nil && pubevt.Module == subevt.Module {
+			if pubevt.PublishSubject == subevt.SubscribeSubject {
+				slog.Warn("event service", "status", "publish event subject is same as subscribe event subject", "subject", pubevt.PublishSubject)
+				return
+			}
+			slog.Debug("event service", "status", "publish event", "publish subject", pubevt.PublishSubject, "subscribe subject", subevt.SubscribeSubject, "content", string(resp))
+			formatdata, err := FormatJSON(resp, pubevt.Template)
+			if err != nil {
+				slog.Error("event service", "status", "format json failed", "error", err)
+				return
+			}
+			slog.Debug("event service", "status", "publish event", "subject", pubevt.PublishSubject, "content", string(formatdata))
+
+			err = nc.Publish(pubevt.PublishSubject, formatdata)
+			if err != nil {
+				slog.Error("event service", "status", "publish failed", "error", err)
+			}
 		}
 	})
 	if err != nil {
@@ -130,37 +193,27 @@ func NewService(nc *nats.Conn, js jetstream.JetStream) (micro.Service, error) {
 	return &Service{svc: svc, sub: sub}, nil
 }
 
-func subscribeMessage(ctx context.Context, nc *nats.Conn, js jetstream.JetStream, msg *nats.Msg) error {
-	subject := strings.TrimPrefix(msg.Subject, subscribeSubject+".")
+func trigger(ctx context.Context, nc *nats.Conn, evt *Event, data []byte) (json.RawMessage, error) {
+	subject := strings.TrimPrefix(evt.SubscribeSubject, eventSubject+".")
 	slog.Info("event", "subject", subject)
 
-	evt, err := GetEvent(ctx, js, EventTypeSubscribe, subject)
+	resp, err := module.Run(ctx, nc, evt.Module, data)
 	if err != nil {
-		return fmt.Errorf("get event: %w", err)
-	}
-
-	resp, err := module.Run(ctx, nc, evt.Module, msg.Data)
-	if err != nil {
-		return fmt.Errorf("run module: %w", err)
+		return nil, fmt.Errorf("run module: %w", err)
 	}
 
 	slog.Info("event", "subject", subject, "response", string(resp))
 
-	return nil
+	return resp, nil
 }
 
 func putEventHandler(ctx context.Context, js jetstream.JetStream, r micro.Request) {
-	var input Event
-	if err := json.Unmarshal(r.Data(), &input); err != nil {
+	var evt Event
+	if err := json.Unmarshal(r.Data(), &evt); err != nil {
 		r.Error("403", "invalid payload", nil)
 		return
 	}
 
-	evt := Event{
-		Type:    EventTypeSubscribe,
-		Subject: input.Subject,
-		Module:  input.Module,
-	}
 	err := PutEvent(ctx, js, &evt)
 	if err != nil {
 		slog.Error("event service", "status", "put event failed", "error", err)
@@ -177,13 +230,34 @@ func getEventHandler(ctx context.Context, js jetstream.JetStream, r micro.Reques
 		return
 	}
 
-	evt, err := GetEvent(ctx, js, EventTypeSubscribe, input.Subject)
-	if err != nil {
-		slog.Error("event service", "status", "get event failed", "error", err)
-		r.Error("404", "event not found", nil)
-		return
+	switch input.Type {
+	case EventTypeSubscribe:
+		evt, err := GetSubscribeEvent(ctx, js, input.SubscribeSubject)
+		if err != nil {
+			slog.Error("event service", "status", "get event failed", "error", err)
+			r.Error("404", "event not found", nil)
+			return
+		}
+		r.RespondJSON(evt)
+	case EventTypePublish:
+		evt, err := GetPublishEvent(ctx, js, input.Module)
+		if err != nil {
+			slog.Error("event service", "status", "get event failed", "error", err)
+			r.Error("404", "event not found", nil)
+			return
+		}
+		r.RespondJSON(evt)
+	case EventTypeForward:
+		evt, err := GetForwardEvent(ctx, js, input.SubscribeSubject)
+		if err != nil {
+			slog.Error("event service", "status", "get event failed", "error", err)
+			r.Error("404", "event not found", nil)
+			return
+		}
+		r.RespondJSON(evt)
+	default:
+		r.Error("403", "invalid event type", nil)
 	}
-	r.RespondJSON(evt)
 }
 
 func listEventHandler(ctx context.Context, js jetstream.JetStream, r micro.Request) {
@@ -202,7 +276,8 @@ func deleteEventHandler(ctx context.Context, js jetstream.JetStream, r micro.Req
 		r.Error("403", "invalid payload", nil)
 		return
 	}
-	err := DeleteEvent(ctx, js, EventTypeSubscribe, input.Subject)
+	// TODO: 引数の定義を決める
+	err := DeleteEvent(ctx, js, input.Type, input.SubscribeSubject)
 	if err != nil {
 		slog.Error("event service", "status", "delete event failed", "error", err)
 		r.Error("500", "failed to delete event", nil)

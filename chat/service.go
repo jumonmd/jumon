@@ -20,9 +20,9 @@ import (
 
 var (
 	ErrBadRequest   = errors.New(400100, "bad request")
+	ErrVerifyFailed = errors.New(400101, "verification did not pass")
 	ErrGeneration   = errors.New(500100, "chat generation failed")
 	ErrVerify       = errors.New(500101, "verify operation failed")
-	ErrVerifyFailed = errors.New(500102, "verify failed")
 )
 
 // NewService creates a chat service for NATS micro service.
@@ -30,7 +30,7 @@ var (
 func NewService(nc *nats.Conn) (micro.Service, error) {
 	svc, err := micro.AddService(nc, micro.Config{
 		Name:        "jumon_chat",
-		Version:     "0.1.0",
+		Version:     "0.1.1",
 		Description: "jumon chat service",
 		QueueGroup:  "chat",
 	})
@@ -148,7 +148,7 @@ func handleVerify(ctx context.Context, nc *nats.Conn, r micro.Request, checks st
 	if !passed {
 		err := fmt.Errorf("checks: %s response: %s", checks, resp.String())
 		slog.Info("chat verify", "status", "verify failed", "error", err)
-		cspan.SetError(ErrVerifyFailed.Wrap(err))
+		cspan.SetResponse(ErrVerifyFailed.Wrap(err))
 		r.Error(ErrVerifyFailed.ServiceError(err))
 		return
 	}

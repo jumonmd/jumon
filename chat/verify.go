@@ -11,12 +11,11 @@ import (
 
 	"github.com/jumonmd/gengo"
 	"github.com/jumonmd/gengo/chat"
+	"github.com/jumonmd/gengo/jsonschema"
 )
 
 const checkPromptTemplate = `
 You are a helpful assistant that checks the response of the user.
-The user will provide a response and a list of checks.
-You will check the response against the checks and return a list of results.
 Answer only with true or false.
 
 Response:
@@ -31,12 +30,21 @@ func VerifyResponse(ctx context.Context, req *chat.Request, resp *chat.Response,
 	slog.Info("check response", "response", resp.String(), "checks", checks)
 	prompt := fmt.Sprintf(checkPromptTemplate, resp.String(), checks)
 
+	schema, _ := jsonschema.ParseJSONString(`
+		{
+			"type": "object",
+			"properties": {
+				"result": {"type": "boolean"}
+			}
+		}
+	`)
 	r := &chat.Request{
 		Model: req.Model,
 		Config: chat.ModelConfig{
 			Temperature: 0.0001,
 		},
-		Messages: []chat.Message{chat.NewTextMessage(chat.MessageRoleHuman, prompt)},
+		Messages:       []chat.Message{chat.NewTextMessage(chat.MessageRoleHuman, prompt)},
+		ResponseSchema: schema,
 	}
 	resp, err := gengo.Generate(ctx, r)
 	if err != nil {

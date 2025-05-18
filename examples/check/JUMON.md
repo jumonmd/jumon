@@ -7,7 +7,7 @@ module: jumonmd/jumon/example/check
 ### main
 
 1. Output a number.
-    - Check: Make sure the answer is 42.
+    - Check: Make sure the answer is '42'.
 
 2. Output a animal.
-    - Check: Make sure the answer is cat.
+    - Check: Make sure the answer is 'cat'.
