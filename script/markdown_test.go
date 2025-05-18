@@ -473,7 +473,7 @@ func TestGetListItemText(t *testing.T) {
 			var listItem *ast.ListItem
 			ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 				if entering && n.Kind() == ast.KindListItem {
-					listItem = n.(*ast.ListItem)
+					listItem, _ = n.(*ast.ListItem)
 					return ast.WalkStop, nil
 				}
 				return ast.WalkContinue, nil

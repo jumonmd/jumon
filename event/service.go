@@ -115,74 +115,8 @@ func NewService(nc *nats.Conn, js jetstream.JetStream) (micro.Service, error) {
 				return
 			}
 		}
-
 		ctx := context.Background()
-
-		fwdevt, err := GetForwardEvent(ctx, js, msg.Subject)
-		if err != nil && !errors.Is(err, ErrEventNotFound) { // ignore not found error
-			slog.Warn("event service", "status", "get forward event failed", "subject", msg.Subject, "error", err)
-			return
-		}
-
-		// just forward event
-		if fwdevt != nil {
-			slog.Info("event service", "status", "forward event", "subject", fwdevt.SubscribeSubject, "module", fwdevt.Module)
-			if fwdevt.PublishSubject == "" {
-				slog.Warn("event service", "status", "forward event to is empty", "subject", fwdevt.PublishSubject, "module", fwdevt.Module)
-				return
-			}
-
-			formatdata, err := FormatJSON(msg.Data, fwdevt.Template)
-			if err != nil {
-				slog.Error("event service", "status", "format json failed", "error", err)
-				return
-			}
-			slog.Debug("event service", "status", "forward event", "subject", fwdevt.PublishSubject, "content", string(formatdata))
-			err = nc.Publish(fwdevt.PublishSubject, formatdata)
-			if err != nil {
-				slog.Error("event service", "status", "publish failed", "error", err)
-			}
-			return
-		}
-
-		subevt, err := GetSubscribeEvent(ctx, js, msg.Subject)
-		if err != nil {
-			slog.Warn("event service", "status", "get subscribe event failed", "subject", msg.Subject, "error", err)
-			return
-		}
-
-		// subscribe event to run script
-		slog.Info("event service", "status", "subscribe event", "subject", subevt.SubscribeSubject, "module", subevt.Module)
-		resp, err := trigger(ctx, nc, subevt, msg.Data)
-		if err != nil {
-			slog.Error("event service", "status", "trigger failed", "error", err)
-		}
-
-		pubevt, err := GetPublishEvent(ctx, js, subevt.Module)
-		if err != nil {
-			slog.Warn("event service", "status", "get publish event failed", "subject", msg.Subject, "error", err)
-			return
-		}
-
-		// publish event after run script
-		if resp != nil && pubevt.Module == subevt.Module {
-			if pubevt.PublishSubject == subevt.SubscribeSubject {
-				slog.Warn("event service", "status", "publish event subject is same as subscribe event subject", "subject", pubevt.PublishSubject)
-				return
-			}
-			slog.Debug("event service", "status", "publish event", "publish subject", pubevt.PublishSubject, "subscribe subject", subevt.SubscribeSubject, "content", string(resp))
-			formatdata, err := FormatJSON(resp, pubevt.Template)
-			if err != nil {
-				slog.Error("event service", "status", "format json failed", "error", err)
-				return
-			}
-			slog.Debug("event service", "status", "publish event", "subject", pubevt.PublishSubject, "content", string(formatdata))
-
-			err = nc.Publish(pubevt.PublishSubject, formatdata)
-			if err != nil {
-				slog.Error("event service", "status", "publish failed", "error", err)
-			}
-		}
+		handleEventMessage(ctx, nc, js, msg)
 	})
 	if err != nil {
 		slog.Error("event service", "status", "subscribe failed", "error", err)
@@ -255,6 +189,8 @@ func getEventHandler(ctx context.Context, js jetstream.JetStream, r micro.Reques
 			return
 		}
 		r.RespondJSON(evt)
+	case EventTypeConsume:
+		panic("not implemented")
 	default:
 		r.Error("403", "invalid event type", nil)
 	}
@@ -276,7 +212,7 @@ func deleteEventHandler(ctx context.Context, js jetstream.JetStream, r micro.Req
 		r.Error("403", "invalid payload", nil)
 		return
 	}
-	// TODO: 引数の定義を決める
+
 	err := DeleteEvent(ctx, js, input.Type, input.SubscribeSubject)
 	if err != nil {
 		slog.Error("event service", "status", "delete event failed", "error", err)
@@ -291,4 +227,80 @@ func setupKV(js jetstream.JetStream) (jetstream.KeyValue, error) {
 		Bucket:      "event",
 		Description: "event key value store",
 	})
+}
+
+func handleEventMessage(ctx context.Context, nc *nats.Conn, js jetstream.JetStream, msg *nats.Msg) {
+	fwdevt, err := GetForwardEvent(ctx, js, msg.Subject)
+	if err != nil && !errors.Is(err, ErrEventNotFound) { // ignore not found error
+		slog.Warn("event service", "status", "get forward event failed", "subject", msg.Subject, "error", err)
+		return
+	}
+
+	// just forward event
+	if fwdevt != nil {
+		handleForwardEvent(nc, fwdevt, msg)
+		return
+	}
+
+	subevt, err := GetSubscribeEvent(ctx, js, msg.Subject)
+	if err != nil {
+		slog.Warn("event service", "status", "get subscribe event failed", "subject", msg.Subject, "error", err)
+		return
+	}
+
+	// subscribe event to run script
+	slog.Info("event service", "status", "subscribe event", "subject", subevt.SubscribeSubject, "module", subevt.Module)
+	resp, err := trigger(ctx, nc, subevt, msg.Data)
+	if err != nil {
+		slog.Error("event service", "status", "trigger failed", "error", err)
+	}
+
+	pubevt, err := GetPublishEvent(ctx, js, subevt.Module)
+	if err != nil {
+		slog.Warn("event service", "status", "get publish event failed", "subject", msg.Subject, "error", err)
+		return
+	}
+
+	// publish event after run script
+	if resp != nil && pubevt.Module == subevt.Module {
+		handlePublishEvent(nc, pubevt, subevt, resp)
+	}
+}
+
+func handleForwardEvent(nc *nats.Conn, fwdevt *Event, msg *nats.Msg) {
+	slog.Info("event service", "status", "forward event", "subject", fwdevt.SubscribeSubject, "module", fwdevt.Module)
+	if fwdevt.PublishSubject == "" {
+		slog.Warn("event service", "status", "forward event to is empty", "subject", fwdevt.PublishSubject, "module", fwdevt.Module)
+		return
+	}
+
+	formatdata, err := FormatJSON(msg.Data, fwdevt.Template)
+	if err != nil {
+		slog.Error("event service", "status", "format json failed", "error", err)
+		return
+	}
+	slog.Debug("event service", "status", "forward event", "subject", fwdevt.PublishSubject, "content", string(formatdata))
+	err = nc.Publish(fwdevt.PublishSubject, formatdata)
+	if err != nil {
+		slog.Error("event service", "status", "publish failed", "error", err)
+	}
+}
+
+func handlePublishEvent(nc *nats.Conn, pubevt *Event, subevt *Event, resp []byte) {
+	if pubevt.PublishSubject == subevt.SubscribeSubject {
+		slog.Warn("event service", "status", "publish event subject is same as subscribe event subject", "subject", pubevt.PublishSubject)
+		return
+	}
+	slog.Debug("event service", "status", "publish event", "publish subject", pubevt.PublishSubject, "subscribe subject", subevt.SubscribeSubject, "content", string(resp))
+	formatdata, err := FormatJSON(resp, pubevt.Template)
+	if err != nil {
+		slog.Error("event service", "status", "format json failed", "error", err)
+		return
+	}
+	slog.Debug("event service", "status", "publish event", "subject", pubevt.PublishSubject, "content", string(formatdata))
+
+	err = nc.Publish(pubevt.PublishSubject, formatdata)
+	if err != nil {
+		slog.Error("event service", "status", "publish failed", "error", err)
+	}
 }

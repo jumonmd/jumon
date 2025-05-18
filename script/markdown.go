@@ -101,52 +101,51 @@ func getListItemText(parent ast.Node, r text.Reader) (string, error) {
 	if parent == nil || !parent.HasChildren() {
 		return "", nil
 	}
-
-	renderer := goldmark.New(goldmark.WithRenderer(markdown.NewRenderer()))
-
-	var buf bytes.Buffer
-
-	// For ordered lists with blockquotes, we need special handling (goldmark bug?)
 	if _, ok := parent.(*ast.ListItem); ok {
-		for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
-			if child.Kind() == ast.KindList {
-				continue
-			}
-
-			if err := renderer.Renderer().Render(&buf, r.Source(), child); err != nil {
-				return "", err
-			}
-		}
-
-		result := strings.TrimSpace(buf.String())
-		sourceStr := string(r.Source())
-		if strings.Contains(sourceStr, ">") && !strings.Contains(result, ">") {
-			lines := strings.Split(sourceStr, "\n")
-			for i, line := range lines {
-				if strings.Contains(line, ">") && i > 0 {
-					blockquoteLine := strings.TrimSpace(line)
-					if !strings.HasPrefix(blockquoteLine, ">") {
-						blockquoteLine = "> " + strings.TrimPrefix(blockquoteLine, "> ")
-					}
-					result = result + "\n" + blockquoteLine
-				}
-			}
-		}
-
-		return result, nil
+		return renderListItemText(parent, r)
 	}
+	return renderNodeText(parent, r)
+}
 
-	// Original implementation for nodes that aren't list items
+func renderListItemText(parent ast.Node, r text.Reader) (string, error) {
+	renderer := goldmark.New(goldmark.WithRenderer(markdown.NewRenderer()))
+	var buf bytes.Buffer
 	for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
 		if child.Kind() == ast.KindList {
 			continue
 		}
-
 		if err := renderer.Renderer().Render(&buf, r.Source(), child); err != nil {
 			return "", err
 		}
 	}
+	result := strings.TrimSpace(buf.String())
+	sourceStr := string(r.Source())
+	if strings.Contains(sourceStr, ">") && !strings.Contains(result, ">") {
+		lines := strings.Split(sourceStr, "\n")
+		for i, line := range lines {
+			if strings.Contains(line, ">") && i > 0 {
+				blockquoteLine := strings.TrimSpace(line)
+				if !strings.HasPrefix(blockquoteLine, ">") {
+					blockquoteLine = "> " + strings.TrimPrefix(blockquoteLine, "> ")
+				}
+				result = result + "\n" + blockquoteLine
+			}
+		}
+	}
+	return result, nil
+}
 
+func renderNodeText(parent ast.Node, r text.Reader) (string, error) {
+	renderer := goldmark.New(goldmark.WithRenderer(markdown.NewRenderer()))
+	var buf bytes.Buffer
+	for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
+		if child.Kind() == ast.KindList {
+			continue
+		}
+		if err := renderer.Renderer().Render(&buf, r.Source(), child); err != nil {
+			return "", err
+		}
+	}
 	result := strings.TrimSpace(buf.String())
 	return result, nil
 }

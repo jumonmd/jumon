@@ -52,7 +52,7 @@ func TestDecode(t *testing.T) {
 			name:     "valid JSON data URL",
 			dataURL:  "data:application/json;base64,eyJrZXkiOiJ2YWx1ZSJ9",
 			wantData: []byte(`{"key":"value"}`),
-			wantMime: "data:application/json;base64",
+			wantMime: "application/json;base64",
 		},
 		{
 			name:      "invalid format - no comma",

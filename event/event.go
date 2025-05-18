@@ -39,6 +39,10 @@ func PutEvent(ctx context.Context, js jetstream.JetStream, evt *Event) error {
 		key = fmt.Sprintf("%s.%s", evt.Type, evt.SubscribeSubject)
 	case EventTypePublish:
 		key = fmt.Sprintf("%s.%s", evt.Type, evt.Module)
+	case EventTypeConsume:
+		key = fmt.Sprintf("%s.%s", evt.Type, evt.Consumer)
+	default:
+		return fmt.Errorf("invalid event type: %s", evt.Type)
 	}
 
 	evtdata, err := json.Marshal(evt)

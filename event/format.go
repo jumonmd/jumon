@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Masa Cento
+// SPDX-License-Identifier: MPL-2.0
+
 package event
 
 import (
@@ -7,7 +10,7 @@ import (
 	"text/template"
 )
 
-// FormatJSON parses the input data as JSON (fixing it if necessary), and if a template is provided,
+// FormatJSON parses the input data as JSON, and if a template is provided,
 // it unmarshals the JSON into a map[string]any and generates new JSON from the template using that map as context.
 func FormatJSON(data []byte, tmpl string) (json.RawMessage, error) {
 	data = bytes.TrimSpace(data)
@@ -17,21 +20,21 @@ func FormatJSON(data []byte, tmpl string) (json.RawMessage, error) {
 
 	if tmpl == "" {
 		return json.RawMessage(string(data)), nil
-	} else {
-		var mapjson map[string]any
-		err := json.Unmarshal(data, &mapjson)
-		if err != nil {
-			return nil, fmt.Errorf("unmarshal json: %w", err)
-		}
-		t, err := template.New("tmpl").Parse(tmpl)
-		if err != nil {
-			return nil, fmt.Errorf("parse template: %w > %s", err, tmpl)
-		}
-		var buf bytes.Buffer
-		err = t.Execute(&buf, mapjson)
-		if err != nil {
-			return nil, fmt.Errorf("execute template: %w", err)
-		}
-		return json.RawMessage(buf.String()), nil
 	}
+
+	var mapjson map[string]any
+	err := json.Unmarshal(data, &mapjson)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal json: %w", err)
+	}
+	t, err := template.New("tmpl").Parse(tmpl)
+	if err != nil {
+		return nil, fmt.Errorf("parse template: %w > %s", err, tmpl)
+	}
+	var buf bytes.Buffer
+	err = t.Execute(&buf, mapjson)
+	if err != nil {
+		return nil, fmt.Errorf("execute template: %w", err)
+	}
+	return json.RawMessage(buf.Bytes()), nil
 }

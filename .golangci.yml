@@ -114,6 +114,7 @@ linters:
         - (*github.com/nats-io/nats.go.Subscription).Unsubscribe
     funlen:
       lines: 90
+      statements: 60
     goheader:
       values:
         regexp:

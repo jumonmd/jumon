@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2025 Masa Cento
+// SPDX-License-Identifier: MPL-2.0
 package event
 
 import (
@@ -26,12 +28,8 @@ func TestFormatJSONWithTemplate(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	var out string
-	if err := json.Unmarshal(got, &out); err != nil {
-		t.Fatalf("failed to unmarshal output: %v", err)
-	}
-	want := `{"buz":"bar"}`
-	if out != want {
-		t.Errorf("got %s, want %s", out, want)
+	want := json.RawMessage(`{"buz":"bar"}`)
+	if !bytes.Equal(got, want) {
+		t.Errorf("got %s, want %s", got, want)
 	}
 }

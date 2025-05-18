@@ -73,6 +73,7 @@ func Run(ctx context.Context, nc *nats.Conn, scr *Script) (json.RawMessage, erro
 		// run step
 		slog.Debug("run step", "step", step.Markdown())
 		resp, err := runStep(ctx, nc, req, scr.Tools)
+		if err != nil && errors.Is(err, chatsvc.ErrVerifyFailed) {
 			slog.Warn("run step", "step", step.Markdown(), "verify failed", err)
 			sspan.SetResponse(fmt.Errorf("run step: %w", err))
 			return nil, fmt.Errorf("run step: %w", err)

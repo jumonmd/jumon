@@ -94,7 +94,12 @@ jumon --disable-telemetry
 ### test
 
 ```
-go test -v ./...
+go test -v -failfast ./chat/... || exit 1
+go test -v -failfast ./event/... || exit 1
+go test -v -failfast ./internal/... || exit 1
+go test -v -failfast ./module/... || exit 1
+go test -v -failfast ./script/... || exit 1
+go test -v -failfast ./tool/... || exit 1
 ```
 
 ### lint
