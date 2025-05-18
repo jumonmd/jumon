@@ -5,6 +5,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -174,10 +175,14 @@ func IsRunning() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to convert pid to int: %w", err)
 	}
-
-	process, err := os.FindProcess(pidint)
-	if err == nil {
-		err = process.Signal(syscall.SIGINFO)
+	proc, _ := os.FindProcess(pidint)
+	err = proc.Signal(syscall.Signal(0))
+	switch {
+	case err == nil, errors.Is(err, syscall.EPERM):
+		return true, nil
+	case errors.Is(err, syscall.ESRCH):
+		return false, nil
+	default:
+		return false, err
 	}
-	return err == nil, nil
 }

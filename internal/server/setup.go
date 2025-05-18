@@ -24,7 +24,7 @@ func setupNatsServer(opts *natsserver.Options) (ns *natsserver.Server, err error
 	opts.ServerName = "jumon(" + version.Version + ")"
 	// signal handle must be disabled
 	opts.NoSigs = true
-	if opts.PidFile != "" {
+	if opts.PidFile == "" {
 		opts.PidFile = pidPath()
 	}
 

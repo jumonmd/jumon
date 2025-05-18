@@ -43,7 +43,7 @@ func Run(name string, input []byte) error {
 	// Get module to the system
 	mod, err := getModule(ctx, js, name)
 	if err != nil {
-		// TODO: notify error
+		slog.Error("get module", "error", err)
 		return fmt.Errorf("get module: %w", err)
 	}
 
