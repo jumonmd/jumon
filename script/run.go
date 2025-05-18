@@ -6,6 +6,7 @@ package script
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -25,7 +26,7 @@ func Run(ctx context.Context, nc *nats.Conn, scr *Script) (json.RawMessage, erro
 	ctx, span := tracer.Start(ctx, nc, "script.run")
 	defer span.End()
 
-	slog.Debug("parse steps", "script", scr.Content)
+	slog.Debug("parse steps", "script", scr.Content, "input", scr.InputURL)
 	steps, preface, err := scr.Steps()
 	if err != nil {
 		span.SetError(fmt.Errorf("parse steps: %w", err))
@@ -60,6 +61,11 @@ func Run(ctx context.Context, nc *nats.Conn, scr *Script) (json.RawMessage, erro
 		slog.Debug("run step", "index", i+1, "step", step.Content)
 
 		req := stepRequest(scr, step, history)
+		laststep := i == len(steps)-1
+		if laststep && scr.OutputSchema != nil {
+			req.ResponseSchema = scr.OutputSchema
+		}
+
 		sspan.SetRequest(req)
 
 		history.Messages = append(history.Messages, req.Messages[len(req.Messages)-1])
@@ -67,7 +73,11 @@ func Run(ctx context.Context, nc *nats.Conn, scr *Script) (json.RawMessage, erro
 		// run step
 		slog.Debug("run step", "step", step.Markdown())
 		resp, err := runStep(ctx, nc, req, scr.Tools)
-		if err != nil {
+			slog.Warn("run step", "step", step.Markdown(), "verify failed", err)
+			sspan.SetResponse(fmt.Errorf("run step: %w", err))
+			return nil, fmt.Errorf("run step: %w", err)
+		} else if err != nil {
+			slog.Error("run step", "step", step.Markdown(), "error", err)
 			sspan.SetError(fmt.Errorf("run step: %w", err))
 			return nil, fmt.Errorf("run step: %w", err)
 		}
@@ -94,9 +104,11 @@ func initialPrompt(preface, inputURL string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("decode input: %w", err)
 		}
+
 		if strings.HasPrefix(mimetype, "text/") || strings.HasPrefix(mimetype, "application/") {
 			initialPrompt = fmt.Sprintf("%s\n\nINPUT:\n%s", initialPrompt, string(input))
 		}
+		slog.Debug("initial prompt", "input", string(input), "mimetype", mimetype, "prompt", initialPrompt)
 	}
 	return initialPrompt, nil
 }

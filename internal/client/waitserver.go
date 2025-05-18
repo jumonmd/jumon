@@ -6,7 +6,7 @@ package client
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os/exec"
 	"time"
 
@@ -18,7 +18,7 @@ func WaitServer(execPath, url string) error {
 	if running {
 		return nil
 	}
-	log.Println("starting server")
+	slog.Info("starting server", "execPath", execPath, "url", url)
 
 	cmd := exec.Command(execPath, "serve")
 	err := cmd.Start()

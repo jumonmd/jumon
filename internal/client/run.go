@@ -40,16 +40,17 @@ func Run(name string, input []byte) error {
 	ctx, cancel := notifyContext(cfg)
 	defer cancel()
 
+	// Get module to the system
+	mod, err := getModule(ctx, js, name)
+	if err != nil {
+		// TODO: notify error
+		return fmt.Errorf("get module: %w", err)
+	}
+
 	// Setup notification
 	err = subscribeNotification(ctx, nc)
 	if err != nil {
 		slog.Warn("setup notification", "error", err)
-	}
-
-	// Get module to the system
-	mod, err := getModule(ctx, js, name)
-	if err != nil {
-		return fmt.Errorf("get module: %w", err)
 	}
 
 	// Run the module
@@ -82,8 +83,8 @@ func setupServices(cfg *Config, isDebug bool) (nc *nats.Conn, js jetstream.JetSt
 	}
 
 	// Setup logger
-	l := logger.New(nc, isDebug, true)
-	slog.SetDefault(slog.New(l))
+	lg := logger.New(nc, isDebug, true)
+	slog.SetDefault(slog.New(lg))
 
 	// Log that local service is setup
 	slog.Debug("local service setup complete")
@@ -107,7 +108,7 @@ func subscribeNotification(ctx context.Context, nc *nats.Conn) error {
 		return fmt.Errorf("empty notification ID")
 	}
 
-	slog.Info("notify to", "notifyTo", notifyTo)
+	slog.Debug("notify to", "notifyTo", notifyTo)
 
 	sub, err := PrintNotifications(nc, "notification."+notifyTo, os.Stdout)
 	if err != nil {

@@ -30,7 +30,8 @@ func Serve(disableTelemetry bool) error {
 		return fmt.Errorf("server is already running")
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	err := createConfig()
 	if err != nil {
@@ -39,48 +40,41 @@ func Serve(disableTelemetry bool) error {
 
 	natscfg, err := server.ProcessConfigFile(configPath())
 	if err != nil {
-		return fmt.Errorf("nats processconfig: %w", err)
+		return fmt.Errorf("process nats config: %w", err)
 	}
 
 	isDebug := os.Getenv("JUMON_DEBUG") == "1"
 
-	// Setup NATS server
 	ns, err := setupNatsServer(natscfg)
 	if err != nil {
 		return fmt.Errorf("nats server: %w", err)
 	}
 	defer shutdownNatsServer(ns)
 
-	// Setup NATS client
 	nc, js, err := SetupNatsClient("nats://localhost:" + strconv.Itoa(natscfg.Port))
 	if err != nil {
 		return fmt.Errorf("nats client: %w", err)
 	}
 	defer cleanupNatsClient(nc)
 
-	// Setup KV
 	err = setupKV(ctx, js)
 	if err != nil {
 		return fmt.Errorf("kv setup: %w", err)
 	}
 
-	// Setup Cache
 	obs, err := SetupCache(ctx, js)
 	if err != nil {
 		return fmt.Errorf("cache setup: %w", err)
 	}
 
-	// Setup logger
 	setupLogger(nc, isDebug)
 
-	// Setup metrics
 	mc, err := setupMetrics(nc, disableTelemetry)
 	if err != nil {
 		slog.Warn("setup metrics", "error", err)
 	}
 	defer cleanupMetrics(mc)
 
-	// Setup services
 	svcs, err := setupServices(nc, js, obs)
 	if err != nil {
 		return fmt.Errorf("setup services: %w", err)
@@ -145,17 +139,24 @@ func cleanupMetrics(mc *metrics.Client) {
 // stopServices stops all services in reverse order.
 func stopServices(svcs []micro.Service) {
 	for _, svc := range svcs {
-		slog.Info("stopping service", "name", svc.Info().Name)
-		svc.Stop()
+		err := svc.Stop()
+		if err != nil {
+			slog.Error("service stop", "name", svc.Info().Name, "error", err)
+		} else {
+			slog.Info("service stopped", "name", svc.Info().Name)
+		}
 	}
 }
 
 func Quit() error {
 	pidpath := pidPath()
 	pid, err := os.ReadFile(pidpath)
-	if err != nil {
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
 		return fmt.Errorf("failed to read pid file: %w", err)
 	}
+
 	slog.Info("quitting server", "pid", string(pid))
 	return server.ProcessSignal(server.CommandQuit, string(pid))
 }
@@ -163,7 +164,9 @@ func Quit() error {
 func IsRunning() (bool, error) {
 	pidpath := pidPath()
 	pid, err := os.ReadFile(pidpath)
-	if err != nil {
+	if os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
 		return false, fmt.Errorf("failed to read pid file: %w", err)
 	}
 
@@ -174,7 +177,7 @@ func IsRunning() (bool, error) {
 
 	process, err := os.FindProcess(pidint)
 	if err == nil {
-		err = process.Kill()
+		err = process.Signal(syscall.SIGINFO)
 	}
 	return err == nil, nil
 }

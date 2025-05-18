@@ -8,16 +8,15 @@ require (
 	github.com/alecthomas/kong v1.10.0
 	github.com/extism/go-sdk v1.7.1
 	github.com/goccy/go-yaml v1.17.1
+	github.com/google/go-cmp v0.7.0
 	github.com/jumonmd/gengo v0.1.2
 	github.com/lmittmann/tint v1.0.7
 	github.com/nats-io/nats-server/v2 v2.11.1
 	github.com/nats-io/nats.go v1.41.0
-	github.com/teekennedy/goldmark-markdown v0.4.1
-	github.com/yuin/goldmark v1.7.8
+	github.com/teekennedy/goldmark-markdown v0.5.1
+	github.com/yuin/goldmark v1.7.11
 	github.com/zchee/go-xdgbasedir v1.0.3
 )
-
-require github.com/google/go-cmp v0.7.0
 
 require (
 	cloud.google.com/go v0.116.0 // indirect
